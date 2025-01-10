@@ -25,7 +25,7 @@ try:
 
 		"""Change Direction: Changing direction requires time to switch. The
 		time is dictated by the stepper motor and controller. """
-		sleep(0.05)
+		sleep(0.5)
 		# Esablish the direction you want to go
 		GPIO.output(DIR,CW)
 
@@ -42,7 +42,7 @@ try:
 
 		"""Change Direction: Changing direction requires time to switch. The
 		time is dictated by the stepper motor and controller. """
-		sleep(0.05)
+		sleep(0.5)
 		GPIO.output(DIR,CCW)
 		for x in range(400):
 			GPIO.output(STEP,GPIO.HIGH)
