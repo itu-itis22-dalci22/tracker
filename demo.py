@@ -1,54 +1,49 @@
 import RPi.GPIO as GPIO
-import time
+from RpiMotorLib import RpiMotorLib
+import signal
+import sys
 
-# Pin tanımlamaları (BCM pin numaraları kullanılıyor)
-DIR_PIN = 21   # Yön pini
-STEP_PIN = 19  # Step pini
-MS1_PIN = 29   # MS1 pini
-MS2_PIN = 31   # MS2 pini
-MS3_PIN = 33  # MS3 pini
+# Pin configuration
+direction_pin = 21      # GPIO pin for direction control
+step_pin = 19           # GPIO pin for stepping
+mode_pins = (29, 31, 33)  # GPIO pins for microstepping mode
 
-# GPIO ayarları
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(DIR_PIN, GPIO.OUT)
-GPIO.setup(STEP_PIN, GPIO.OUT)
-GPIO.setup(MS1_PIN, GPIO.OUT)
-GPIO.setup(MS2_PIN, GPIO.OUT)
-GPIO.setup(MS3_PIN, GPIO.OUT)
+# Motor parameters
+steps = 200             # Number of steps per movement
+steptype = "Half"       # Step type: "Full", "Half", "1/4", "1/8", "1/16"
+stepdelay = 0.005       # Delay between steps
+verbose = False         # Verbose output
+initialdelay = 0.05     # Initial delay before movement starts
 
-# Yarım adım modunu ayarla (MS1 = HIGH, MS2 = LOW, MS3 = LOW)
-GPIO.output(MS1_PIN, GPIO.HIGH)
-GPIO.output(MS2_PIN, GPIO.LOW)
-GPIO.output(MS3_PIN, GPIO.LOW)
+# Initialize the A4988 stepper motor driver
+a4988_nema = RpiMotorLib.A4988Nema(direction_pin, step_pin, mode_pins, "A4988")
 
-def move_motor(steps, direction):
-    """
-    Step motorunu verilen adım sayısı ve yön ile hareket ettirir.
+# Function to handle cleanup on exit
+def cleanup(signal, frame):
+    print("\nExiting gracefully...")
+    GPIO.cleanup()  # Release GPIO resources
+    sys.exit(0)
 
-    :param steps: Atılacak adım sayısı
-    :param direction: Yön (True: İleri, False: Geri)
-    """
-    # Yönü ayarla
-    GPIO.output(DIR_PIN, GPIO.HIGH if direction else GPIO.LOW)
+# Attach signal handler for graceful exit
+signal.signal(signal.SIGINT, cleanup)
 
-    for _ in range(steps):
-        GPIO.output(STEP_PIN, GPIO.HIGH)
-        time.sleep(0.001)  # 1000 mikrosaniye (adım süresi ayarlanabilir)
-        GPIO.output(STEP_PIN, GPIO.LOW)
-        time.sleep(0.001)
+# Main program
+if __name__ == "__main__":
+    print("Testing motor...")
 
-try:
+    # Test loop to verify functionality (rotates 5 times in both directions)
+    for i in range(5):  # Change the range to test more/less
+        print(f"Cycle {i + 1} - Clockwise")
+        a4988_nema.motor_go(True, steptype, steps, stepdelay, verbose, initialdelay)
+        
+        print(f"Cycle {i + 1} - Counterclockwise")
+        a4988_nema.motor_go(False, steptype, steps, stepdelay, verbose, initialdelay)
+    
+    print("Test completed. Starting infinite loop...")
+
+    # Infinite loop for continuous operation
     while True:
-        # 1 saniye ileri hareket
-        move_motor(200, True)  # 200 adım ileri git
-        time.sleep(1)  # 1 saniye bekle
-
-        # 1 saniye geri hareket
-        move_motor(200, False)  # 200 adım geri git
-        time.sleep(1)  # 1 saniye bekle
-
-except KeyboardInterrupt:
-    print("\nÇıkış yapılıyor...")
-
-finally:
-    GPIO.cleanup()
+        for clockwise in [True, False]:
+            direction = "Clockwise" if clockwise else "Counterclockwise"
+            print(f"Rotating {direction}...")
+            a4988_nema.motor_go(clockwise, steptype, steps, stepdelay, verbose, initialdelay)
